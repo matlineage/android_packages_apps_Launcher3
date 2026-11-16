@@ -275,7 +275,6 @@ open class RecentsState(@JvmField val ordinal: Int, private val mFlags: Int) :
             RecentsState(
                 DEFAULT_STATE_ORDINAL,
                 (FLAG_DISABLE_RESTORE_EXCEPT_UI_MODE_CHANGE or
-                    FLAG_CLEAR_ALL_BUTTON or
                     FLAG_OVERVIEW_ACTIONS or
                     FLAG_SHOW_AS_GRID or
                     FLAG_SCRIM or

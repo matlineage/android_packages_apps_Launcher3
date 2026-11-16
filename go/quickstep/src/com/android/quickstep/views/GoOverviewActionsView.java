@@ -54,6 +54,10 @@ public class GoOverviewActionsView extends OverviewActionsView<OverlayUICallback
     protected void onFinishInflate() {
         super.onFinishInflate();
 
+        // The screenshot button only exists in the go launcher layout; the base class no longer
+        // wires it up, so do it here.
+        findViewById(R.id.action_screenshot).setOnClickListener(this);
+
         if (getResources().getBoolean(R.bool.enable_niu_actions)) {
             findViewById(R.id.action_listen).setOnClickListener(this);
             findViewById(R.id.action_translate).setOnClickListener(this);
@@ -73,7 +77,9 @@ public class GoOverviewActionsView extends OverviewActionsView<OverlayUICallback
             return;
         }
         int id = view.getId();
-        if (id == R.id.action_listen) {
+        if (id == R.id.action_screenshot) {
+            mCallbacks.onScreenshot();
+        } else if (id == R.id.action_listen) {
             mCallbacks.onListen();
         } else if (id == R.id.action_translate) {
             mCallbacks.onTranslate();

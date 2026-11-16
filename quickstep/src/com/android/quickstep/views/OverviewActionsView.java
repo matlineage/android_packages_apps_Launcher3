@@ -151,6 +151,13 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
      */
     private Button mSaveAppPairButton;
 
+    /**
+     * The "Clear all" button inside {@link #mActionButtons}. Not present in the Go launcher
+     * layout, so nullable.
+     */
+    @Nullable
+    private View mClearAllButton;
+
     @ActionsHiddenFlags
     private int mHiddenFlags;
 
@@ -159,6 +166,10 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
 
     @SplitButtonHiddenFlags
     private int mSplitButtonHiddenFlags;
+
+    /** Listener for the "Clear all" action button. */
+    @Nullable
+    private OnClickListener mClearAllListener;
 
     @Nullable
     protected T mCallbacks;
@@ -206,14 +217,25 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
             }, 1f /* initialValue */);
         }
 
-        // The screenshot button is implemented as a Button in launcher3 and NexusLauncher, but is
-        // an ImageButton in go launcher (does not share a common class with Button). Take care when
-        // casting this.
-        View screenshotButton = findViewById(R.id.action_screenshot);
-        screenshotButton.setOnClickListener(this);
         mSplitButton = findViewById(R.id.action_split);
         mSplitButton.setOnClickListener(this);
         mSaveAppPairButton.setOnClickListener(this);
+        // The clear all button is not present in the go launcher layout, so guard against it.
+        mClearAllButton = findViewById(R.id.action_clear_all);
+        if (mClearAllButton != null) {
+            mClearAllButton.setOnClickListener(this);
+        }
+    }
+
+    /**
+     * Set the listener invoked when the "Clear all" action button is tapped. This is wired
+     * directly by {@link com.android.quickstep.views.RecentsView} because dismissing all tasks is
+     * not scoped to a specific task and therefore does not go through {@link OverlayUICallbacks}.
+     *
+     * @param listener for the clear all button, or {@code null} to clear the listener.
+     */
+    public void setClearAllListener(OnClickListener listener) {
+        mClearAllListener = listener;
     }
 
     /**
@@ -227,13 +249,19 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
 
     @Override
     public void onClick(View view) {
+        if (view.getId() == R.id.action_clear_all) {
+            // Dismissing all tasks is not scoped to a single task, so it does not go through the
+            // per-task OverlayUICallbacks.
+            if (mClearAllListener != null) {
+                mClearAllListener.onClick(view);
+            }
+            return;
+        }
         if (mCallbacks == null) {
             return;
         }
         int id = view.getId();
-        if (id == R.id.action_screenshot) {
-            mCallbacks.onScreenshot();
-        } else if (id == R.id.action_split) {
+        if (id == R.id.action_split) {
             mCallbacks.onSplit();
         } else if (id == R.id.action_save_app_pair) {
             mCallbacks.onSaveAppPair();
@@ -279,6 +307,11 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
         }
         boolean isEnabled = (mDisabledFlags & ~DISABLED_ROTATED) == 0;
         LayoutUtils.setViewEnabled(this, isEnabled);
+        // The clear all button is independent of these flags (scrolling, thumbnail state),
+        // so re-enable it after the recursive update above.
+        if (mClearAllButton != null) {
+            mClearAllButton.setEnabled(true);
+        }
     }
 
     /**
@@ -312,7 +345,11 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
         if (mDp == null) {
             return;
         }
-        boolean showSingleTaskActions = !mIsGroupedTask;
+        // On small screens the split button is hidden, so this row only holds the clear all
+        // button -- keep it visible even when a split pair is focused so clear all stays
+        // reachable. On large screens the save app pair button replaces the row as before.
+        boolean showSingleTaskActions = !mIsGroupedTask
+                || !mDp.getDeviceProperties().isLargeScreen();
         boolean showGroupActions = mIsGroupedTask && mDp.getDeviceProperties().isLargeScreen()
                 && mCanSaveAppPair
                 && !getContext().getSystemService(ActivityManager.class).isLowRamDevice();
