@@ -33,10 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.hasTextExactly
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -82,8 +80,6 @@ class LandingScreenTest {
     private val widgetsUsersRepository = FakeWidgetUsersRepository()
 
     private lateinit var searchBarHint: String
-    private lateinit var featuredTabLabel: String
-    private lateinit var browseTabLabel: String
     private val featuredWidgetA = PERSONAL_TEST_APPS[0].widgets[0]
     private val featuredWidgetB = WORK_TEST_APPS[0].widgets[0]
 
@@ -109,10 +105,6 @@ class LandingScreenTest {
 
         searchBarHint = "Search"
         // context.applicationContext.resources.getString(R.string.widgets_search_bar_hint)
-        featuredTabLabel = "Featured"
-        // context.resources.getString(R.string.featured_widgets_tab_label)
-        browseTabLabel = "Browse"
-        // context.resources.getString(R.string.browse_widgets_tab_label)
 
         widgetsRepository.seedWidgets(PERSONAL_TEST_APPS)
         widgetsRepository.seedFeaturedWidgets(setOf(featuredWidgetA.id, featuredWidgetB.id))
@@ -131,20 +123,8 @@ class LandingScreenTest {
             testScope.runCurrent()
             composeTestRule.waitForIdle()
 
-            // By default featured tab is selected.
-            composeTestRule
-                .onNode(hasTextExactly(featuredTabLabel))
-                .assertExists()
-                .assertIsSelected()
-
-            // Select the browse tab
-            composeTestRule
-                .onNode(hasTextExactly(browseTabLabel))
-                .assertExists()
-                .assertIsNotSelected()
-                .performClick()
-            testScope.runCurrent()
-            composeTestRule.waitForIdle()
+            // Browse page is shown by default with the list of apps hosting widgets.
+            composeTestRule.onNode(hasText(appTitle)).assertExists()
 
             // Select an app from browse list
             composeTestRule.onNode(hasText(appTitle)).performClick()
@@ -165,8 +145,10 @@ class LandingScreenTest {
             testScope.runCurrent()
             composeTestRule.waitForIdle()
 
-            // This time the default tab "Featured" is re-selected
-            composeTestRule.onNode(hasText(featuredTabLabel)).assertIsSelected()
+            // The selected app's widgets are still showing after returning from search.
+            composeTestRule
+                .onNode(hasContentDescription(widgetLabel, substring = true))
+                .assertExists()
         }
 
     @Test
@@ -185,14 +167,6 @@ class LandingScreenTest {
                 LandingScreenTestContent(isCompact = isCompact)
             }
         }
-        testScope.runCurrent()
-        composeTestRule.waitForIdle()
-
-        composeTestRule
-            .onNode(hasTextExactly(browseTabLabel))
-            .assertExists()
-            .assertIsNotSelected()
-            .performClick()
         testScope.runCurrent()
         composeTestRule.waitForIdle()
 
@@ -216,8 +190,8 @@ class LandingScreenTest {
 
         // app1 is still selected (in two pane).
         composeTestRule.onNode(hasText(app1)).assertIsSelected()
-        composeTestRule.onNode(hasText(featuredTabLabel)).assertIsNotSelected()
-        // selected app2
+
+        // select app2
         composeTestRule.onNode(hasText(app2)).performClick()
         testScope.runCurrent()
         composeTestRule.waitForIdle()

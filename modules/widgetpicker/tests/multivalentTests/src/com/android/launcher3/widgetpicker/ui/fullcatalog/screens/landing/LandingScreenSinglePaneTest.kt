@@ -22,7 +22,6 @@ import android.platform.test.rule.LimitDevicesRule
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
@@ -80,7 +79,6 @@ class LandingScreenSinglePaneTest {
     private val widgetAppIconsRepository = FakeWidgetAppIconsRepository()
     private val widgetsUsersRepository = FakeWidgetUsersRepository()
 
-    private lateinit var featuredTabLabel: String
     private lateinit var browseTabLabel: String
     private val featuredWidgetA = PERSONAL_TEST_APPS[0].widgets[0]
     private val featuredWidgetB = WORK_TEST_APPS[0].widgets[0]
@@ -105,11 +103,9 @@ class LandingScreenSinglePaneTest {
                     ),
             )
 
-        featuredTabLabel = context.resources.getString(R.string.featured_widgets_tab_label)
         browseTabLabel = context.resources.getString(R.string.browse_widgets_tab_label)
 
         widgetsRepository.seedWidgets(PERSONAL_TEST_APPS + WORK_TEST_APPS)
-        widgetsRepository.seedFeaturedWidgets(setOf(featuredWidgetA.id, featuredWidgetB.id))
         widgetsUsersRepository.seedUserProfiles(
             WidgetUserProfiles(
                 personal = TestUtils.widgetUserProfilePersonal,
@@ -147,6 +143,7 @@ class LandingScreenSinglePaneTest {
             runCurrent()
             composeTestRule.waitForIdle()
 
+            // With a work profile there are personal + work tabs, each showing the error.
             composeTestRule.onNode(hasTextExactly(PERSONAL_LABEL)).assertExists().performClick()
             runCurrent()
             composeTestRule.waitForIdle()
@@ -159,35 +156,30 @@ class LandingScreenSinglePaneTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun showsFeaturedSectionByDefault() =
+    fun showsBrowseSectionByDefault() =
         testScope.runTest {
             composeTestRule.setContent { SinglePaneTestContent() }
 
             runCurrent()
             composeTestRule.waitForIdle()
 
-            // Toolbar tabs state
-            composeTestRule
-                .onNode(hasTextExactly(featuredTabLabel))
-                .assertIsSelected()
-                .assertContentDescriptionEquals("$featuredTabLabel widgets")
+            // Toolbar tabs state: browse (personal) selected by default
             composeTestRule
                 .onNode(hasTextExactly(PERSONAL_LABEL))
-                .assertExists()
+                .assertIsSelected()
                 .assertContentDescriptionEquals("$PERSONAL_LABEL widgets")
-                .assertIsNotSelected()
             composeTestRule
                 .onNode(hasTextExactly(WORK_LABEL))
                 .assertExists()
                 .assertContentDescriptionEquals("$WORK_LABEL widgets")
                 .assertIsNotSelected()
-            // Featured Widgets state
+            // No featured recommendations showing
             composeTestRule
                 .onNode(hasContentDescription(featuredWidgetA.label, substring = true))
-                .assertExists()
+                .assertIsNotDisplayed()
             composeTestRule
                 .onNode(hasContentDescription(featuredWidgetB.label, substring = true))
-                .assertExists()
+                .assertIsNotDisplayed()
         }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -205,7 +197,6 @@ class LandingScreenSinglePaneTest {
 
             // Toolbar tabs state
             composeTestRule.onNode(hasTextExactly(PERSONAL_LABEL)).assertExists().assertIsSelected()
-            composeTestRule.onNode(hasTextExactly(featuredTabLabel)).assertIsNotSelected()
             composeTestRule.onNode(hasTextExactly(WORK_LABEL)).assertExists().assertIsNotSelected()
             // No recommendations showing
             composeTestRule
@@ -224,7 +215,6 @@ class LandingScreenSinglePaneTest {
     fun noWorkProfile() =
         testScope.runTest {
             widgetsRepository.seedWidgets(PERSONAL_TEST_APPS)
-            widgetsRepository.seedFeaturedWidgets(setOf(featuredWidgetA.id))
             widgetsUsersRepository.seedUserProfiles(
                 WidgetUserProfiles(personal = TestUtils.widgetUserProfilePersonal, work = null),
                 workProfileUser = null,
@@ -235,21 +225,12 @@ class LandingScreenSinglePaneTest {
             runCurrent()
             composeTestRule.waitForIdle()
 
-            // Toolbar tabs state shows 2 tabs (featured / browse)
-            composeTestRule.onNode(hasTextExactly(featuredTabLabel)).assertIsSelected()
-            composeTestRule
-                .onNode(hasTextExactly(browseTabLabel))
-                .assertExists()
-                .assertIsNotSelected()
-            composeTestRule.onNode(hasTextExactly(browseTabLabel)).onSiblings().assertCountEquals(1)
-            // featured widgets showing
-            composeTestRule
-                .onNode(hasContentDescription(featuredWidgetA.label, substring = true))
-                .assertIsDisplayed()
-            // Widget apps list is not showing.
+            // No tabs: only the browse page is shown
+            composeTestRule.onNode(hasTextExactly(browseTabLabel)).assertDoesNotExist()
+            // Widget apps list is showing directly
             composeTestRule
                 .onNode(hasText(PERSONAL_TEST_APPS[0].title!!.toString()))
-                .assertIsNotDisplayed()
+                .assertIsDisplayed()
         }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -258,7 +239,6 @@ class LandingScreenSinglePaneTest {
         testScope.runTest {
             val pausedError = "work apps paused"
             widgetsRepository.seedWidgets(PERSONAL_TEST_APPS + WORK_TEST_APPS)
-            widgetsRepository.seedFeaturedWidgets(setOf(featuredWidgetA.id))
             widgetsUsersRepository.seedUserProfiles(
                 WidgetUserProfiles(
                     personal = TestUtils.widgetUserProfilePersonal,

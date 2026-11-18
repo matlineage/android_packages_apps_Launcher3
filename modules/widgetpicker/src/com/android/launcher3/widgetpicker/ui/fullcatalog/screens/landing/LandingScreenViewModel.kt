@@ -25,19 +25,15 @@ import androidx.compose.runtime.snapshotFlow
 import com.android.launcher3.widgetpicker.WidgetPickerSingleton
 import com.android.launcher3.widgetpicker.domain.interactor.WidgetAppIconsInteractor
 import com.android.launcher3.widgetpicker.domain.interactor.WidgetsInteractor
-import com.android.launcher3.widgetpicker.shared.model.PickableWidget
 import com.android.launcher3.widgetpicker.shared.model.WidgetAppIcon
 import com.android.launcher3.widgetpicker.shared.model.WidgetAppId
 import com.android.launcher3.widgetpicker.shared.model.WidgetId
 import com.android.launcher3.widgetpicker.shared.model.WidgetPreview
 import com.android.launcher3.widgetpicker.shared.model.WidgetUserProfile
 import com.android.launcher3.widgetpicker.shared.model.WidgetUserProfileType
-import com.android.launcher3.widgetpicker.shared.model.isAppWidget
-import com.android.launcher3.widgetpicker.shared.model.isShortcut
 import com.android.launcher3.widgetpicker.ui.ViewModel
 import com.android.launcher3.widgetpicker.ui.model.DisplayableWidgetApp
 import com.android.launcher3.widgetpicker.ui.model.DisplayableWidgetApp.Companion.getWidgetIdsForApp
-import com.android.launcher3.widgetpicker.ui.model.WidgetSizeGroup
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import java.util.concurrent.atomic.AtomicReference
@@ -60,7 +56,6 @@ constructor(
             launch { initBrowseWidgets() }
             launch { initBrowseWidgetPreviews() }
             launch { initWorkWidgetPreviews() }
-            launch { initFeaturedWidgets() }
             launch { initAppIcons() }
 
             awaitCancellation()
@@ -71,7 +66,7 @@ constructor(
     private var pendingUpdate = AtomicReference<(() -> Unit)?>(null)
 
     /** Section within the landing screen that is currently showing. */
-    var selectedSubSection by mutableStateOf(LandingScreenSubSection.FEATURED)
+    var selectedSubSection by mutableStateOf(LandingScreenSubSection.BROWSE)
         private set
 
     /** Data backing the browse section in the landing screen. */
@@ -126,13 +121,7 @@ constructor(
         }
     }
 
-    /** Data backing the featured section in landing screen; holds widgets that are featured. */
-    var featuredWidgetsState by mutableStateOf(FeaturedWidgetsState())
-        private set
 
-    /** Preview information about the widgets shown in the featured section. */
-    var featuredWidgetPreviewsState by mutableStateOf(PreviewsState())
-        private set
 
     private fun postUpdateOnUiReady(block: () -> Unit) {
         if (uiReady) {
@@ -196,41 +185,6 @@ constructor(
         awaitCancellation()
     }
 
-    private suspend fun initFeaturedWidgets() {
-        widgetsInteractor.getFeaturedWidgets().collect { result ->
-            val widgetsState =
-                FeaturedWidgetsState(
-                    sizeGroups =
-                        result
-                            .groupBy {
-                                Pair(it.sizeInfo.containerWidthPx, it.sizeInfo.containerHeightPx)
-                            }
-                            .map { (containerSize, value) ->
-                                WidgetSizeGroup(
-                                    previewContainerWidthPx = containerSize.first,
-                                    previewContainerHeightPx = containerSize.second,
-                                    widgets = value,
-                                )
-                            },
-                    widgetsCount = result.count { it.widgetInfo.isAppWidget() },
-                    shortcutsCount = result.count { it.widgetInfo.isShortcut() },
-                )
-
-            val previewsState =
-                PreviewsState(
-                    result.associate { res -> res.id to widgetsInteractor.getWidgetPreview(res.id) }
-                )
-
-            // Since rendering widgets is expensive, bind featured widgets only once the animations
-            // for the landing screen are complete.
-            postUpdateOnUiReady {
-                featuredWidgetsState = widgetsState
-                featuredWidgetPreviewsState = previewsState
-            }
-        }
-        awaitCancellation()
-    }
-
     private suspend fun initAppIcons() {
         widgetAppIconsInteractor.getAllWidgetAppIcons().collect { result ->
             appIconsState = AppIconsState(icons = result)
@@ -241,7 +195,7 @@ constructor(
     fun resetSelections() {
         onSelectedPersonalAppToggle(null)
         onSelectedWorkAppToggle(null)
-        onSelectedSubSectionChange(LandingScreenSubSection.FEATURED)
+        onSelectedSubSectionChange(LandingScreenSubSection.BROWSE)
     }
 
     /**
@@ -316,24 +270,6 @@ sealed class BrowseWidgetsState {
     /** No data loaded yet or unavailable for some reason. */
     data object NoData : BrowseWidgetsState()
 }
-
-/**
- * Represents widgets data to be shown in the "featured" section.
- *
- * @param sizeGroups groups holding widgets of similar sizes that can be presented in a coherent
- *   manner in the featured section.
- * @param widgetsCount total count of widgets in the size groups (pre-computed so UI doesn't need to
- *   count).
- * @param shortcutsCount total count of shortcuts in the size groups (pre-computed so UI doesn't
- *   need to count).
- */
-@Stable
-@Immutable
-data class FeaturedWidgetsState(
-    val sizeGroups: List<WidgetSizeGroup> = emptyList(),
-    val widgetsCount: Int = 0,
-    val shortcutsCount: Int = 0,
-)
 
 /**
  * State class holding preview information about widgets in a specific section (featured, browse,

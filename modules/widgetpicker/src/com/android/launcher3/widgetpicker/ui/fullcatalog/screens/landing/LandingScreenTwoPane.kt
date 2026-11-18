@@ -50,21 +50,18 @@ import com.android.launcher3.widgetpicker.ui.WidgetInteractionSource
 import com.android.launcher3.widgetpicker.ui.components.AppHeaderDescriptionStyle
 import com.android.launcher3.widgetpicker.ui.components.LeadingIconToolbarTab
 import com.android.launcher3.widgetpicker.ui.components.ScrollableFloatingToolbar
-import com.android.launcher3.widgetpicker.ui.components.SelectableSuggestionsHeader
 import com.android.launcher3.widgetpicker.ui.components.TwoPaneLayout
 import com.android.launcher3.widgetpicker.ui.components.WidgetAppHeaderStyle
 import com.android.launcher3.widgetpicker.ui.components.WidgetAppsList
 import com.android.launcher3.widgetpicker.ui.components.WidgetsGrid
 import com.android.launcher3.widgetpicker.ui.components.widgetPickerTestTag
-import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.DEFAULT_SELECTED_TAB
-import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.PERSONAL_TAB_INDEX
-import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.TABS_COUNT_WITHOUT_WORK_PROFILE
-import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.TABS_COUNT_WITH_WORK_PROFILE
-import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.WORK_TAB_INDEX
 import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.contentShape
 import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.leftPaneContentBottomEdgeSpacing
 import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.pagerItemsSpacing
-import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneTestTags.FEATURED_WIDGETS_HEADER_TEST_TAG
+import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.PERSONAL_TAB_INDEX
+import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.TABS_COUNT_WITH_WORK_PROFILE
+import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.TABS_COUNT_WITHOUT_WORK_PROFILE
+import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneDimens.WORK_TAB_INDEX
 import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneTestTags.PERSONAL_WIDGETS_LIST_TEST_TAG
 import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneTestTags.PERSONAL_WIDGETS_TAB_TEST_TAG
 import com.android.launcher3.widgetpicker.ui.fullcatalog.screens.landing.LandingScreenTwoPaneTestTags.WORK_WIDGETS_TAB_TEST_TAG
@@ -82,9 +79,6 @@ import kotlinx.coroutines.launch
 fun LandingScreenTwoPane(
     selectedSubSection: LandingScreenSubSection,
     searchBar: @Composable () -> Unit,
-    featuredWidgets: @Composable () -> Unit,
-    featuredWidgetsCount: Int,
-    featuredShortcutsCount: Int,
     widgetAppIconsState: AppIconsState,
     browseWidgetsState: BrowseWidgetsState.Data,
     personalWidgetPreviewsState: PreviewsState,
@@ -98,10 +92,6 @@ fun LandingScreenTwoPane(
     onSelectedSubSectionChange: (LandingScreenSubSection) -> Unit,
 ) {
     val hasWorkProfile = remember(browseWidgetsState) { browseWidgetsState.workProfile != null }
-    var isFeaturedSectionShowing by
-        rememberSaveable(selectedSubSection) {
-            mutableStateOf(selectedSubSection == LandingScreenSubSection.FEATURED)
-        }
     val pageCount = remember {
         if (hasWorkProfile) {
             TABS_COUNT_WITH_WORK_PROFILE
@@ -119,9 +109,6 @@ fun LandingScreenTwoPane(
             leftPaneTitle = stringResource(R.string.widget_picker_left_pane_accessibility_label),
             leftContent = {
                 LeftPaneContent(
-                    isFeaturedSectionSelected = isFeaturedSectionShowing,
-                    featuredWidgetsCount = featuredWidgetsCount,
-                    featuredShortcutsCount = featuredShortcutsCount,
                     pagerState = pagerState,
                     hasWorkProfile = hasWorkProfile,
                     browseWidgetsState = browseWidgetsState,
@@ -130,17 +117,10 @@ fun LandingScreenTwoPane(
                     personalWidgetPreviewsState = personalWidgetPreviewsState,
                     selectedWorkWidgetAppId = selectedWorkWidgetAppId,
                     workWidgetPreviewsState = workWidgetPreviewsState,
-                    onFeaturedHeaderClick = {
-                        isFeaturedSectionShowing = true
-                        onPersonalWidgetAppToggle(null)
-                        onWorkWidgetAppToggle(null)
-                    },
                     onPersonalWidgetAppToggle = { id ->
-                        isFeaturedSectionShowing = false
                         onPersonalWidgetAppToggle(id)
                     },
                     onWorkWidgetAppToggle = { id ->
-                        isFeaturedSectionShowing = false
                         onWorkWidgetAppToggle(id)
                     },
                     onWidgetInteraction = onWidgetInteraction,
@@ -149,7 +129,6 @@ fun LandingScreenTwoPane(
             },
             rightPaneTitle =
                 rightPaneTitle(
-                    showingFeaturedTab = isFeaturedSectionShowing,
                     currentPageIndex = pagerState.currentPage,
                     browseWidgetsState = browseWidgetsState,
                     selectedPersonalWidgetAppId = selectedPersonalWidgetAppId,
@@ -158,8 +137,6 @@ fun LandingScreenTwoPane(
             rightContent = {
                 RightPaneContent(
                     pagerState = pagerState,
-                    isFeaturedSectionSelected = isFeaturedSectionShowing,
-                    featuredWidgets = featuredWidgets,
                     browseWidgetsState = browseWidgetsState,
                     selectedPersonalWidgetAppId = selectedPersonalWidgetAppId,
                     personalWidgetPreviewsState = personalWidgetPreviewsState,
@@ -172,14 +149,8 @@ fun LandingScreenTwoPane(
         )
     }
 
-    LaunchedEffect(isFeaturedSectionShowing, pagerState) {
-        snapshotFlow {
-                if (isFeaturedSectionShowing) {
-                    LandingScreenSubSection.FEATURED
-                } else {
-                    pagerState.settledPage.toSubSection()
-                }
-            }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage.toSubSection() }
             .distinctUntilChanged()
             .collectLatest { onSelectedSubSectionChange(it) }
     }
@@ -191,14 +162,13 @@ fun LandingScreenTwoPane(
  */
 @Composable
 private fun rightPaneTitle(
-    showingFeaturedTab: Boolean,
     currentPageIndex: Int,
     browseWidgetsState: BrowseWidgetsState.Data,
     selectedPersonalWidgetAppId: WidgetAppId?,
     selectedWorkWidgetAppId: WidgetAppId?,
 ): String? {
     val selectedAppName: CharSequence? =
-        if (currentPageIndex == 0) {
+        if (currentPageIndex == PERSONAL_TAB_INDEX) {
             selectedPersonalWidgetAppId?.let { selectedId ->
                 browseWidgetsState.personalWidgetApps.find { it.id == selectedId }?.title
             }
@@ -208,12 +178,7 @@ private fun rightPaneTitle(
             }
         }
 
-    return if (showingFeaturedTab) {
-        stringResource(
-            R.string.widget_picker_right_pane_accessibility_label,
-            stringResource(R.string.featured_widgets_tab_label),
-        )
-    } else if (selectedAppName != null) {
+    return if (selectedAppName != null) {
         stringResource(R.string.widget_picker_right_pane_accessibility_label, selectedAppName)
     } else {
         null
@@ -223,8 +188,6 @@ private fun rightPaneTitle(
 @Composable
 private fun RightPaneContent(
     pagerState: PagerState,
-    isFeaturedSectionSelected: Boolean,
-    featuredWidgets: @Composable () -> Unit,
     browseWidgetsState: BrowseWidgetsState.Data,
     selectedPersonalWidgetAppId: WidgetAppId?,
     personalWidgetPreviewsState: PreviewsState,
@@ -234,8 +197,6 @@ private fun RightPaneContent(
     showDragShadow: Boolean,
 ) {
     when {
-        isFeaturedSectionSelected -> featuredWidgets()
-
         pagerState.currentPage == PERSONAL_TAB_INDEX -> {
             selectedPersonalWidgetAppId?.let {
                 val selectedPersonalWidgets =
@@ -286,10 +247,6 @@ private fun RightPaneContent(
 
 @Composable
 private fun LeftPaneContent(
-    isFeaturedSectionSelected: Boolean,
-    onFeaturedHeaderClick: () -> Unit,
-    featuredWidgetsCount: Int,
-    featuredShortcutsCount: Int,
     pagerState: PagerState,
     hasWorkProfile: Boolean,
     browseWidgetsState: BrowseWidgetsState.Data,
@@ -308,15 +265,6 @@ private fun LeftPaneContent(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            SelectableSuggestionsHeader(
-                selected = isFeaturedSectionSelected,
-                onSelect = onFeaturedHeaderClick,
-                widgetsCount = featuredWidgetsCount,
-                shortcutsCount = featuredShortcutsCount,
-                shape = contentShape,
-                modifier =
-                    Modifier.fillMaxWidth().widgetPickerTestTag(FEATURED_WIDGETS_HEADER_TEST_TAG),
-            )
             HorizontalPager(
                 state = pagerState,
                 verticalAlignment = Alignment.Top,
@@ -416,8 +364,8 @@ private fun WorkSection(
             onWidgetAppClick = { widgetApp -> onWorkWidgetAppToggle(widgetApp.id) },
             onWidgetInteraction = onWidgetInteraction,
             showDragShadow = showDragShadow,
-            bottomContentSpacing = bottomContentSpacing,
             widgetInteractionSource = WidgetInteractionSource.BROWSE,
+            bottomContentSpacing = bottomContentSpacing,
             emptyWidgetsErrorMessage =
                 browseWidgetsState.workProfile?.let { workProfile ->
                     workProfile.pausedProfileMessage.takeIf { workProfile.paused }
@@ -477,7 +425,7 @@ private fun LandingScreenSubSection.toPage() =
     when (this) {
         LandingScreenSubSection.BROWSE -> PERSONAL_TAB_INDEX
         LandingScreenSubSection.WORK -> WORK_TAB_INDEX
-        else -> DEFAULT_SELECTED_TAB
+        else -> PERSONAL_TAB_INDEX
     }
 
 private fun Int.toSubSection() =
@@ -501,11 +449,9 @@ private object LandingScreenTwoPaneDimens {
 
     const val PERSONAL_TAB_INDEX = 0
     const val WORK_TAB_INDEX = 1
-    const val DEFAULT_SELECTED_TAB = PERSONAL_TAB_INDEX
 }
 
 private object LandingScreenTwoPaneTestTags {
-    const val FEATURED_WIDGETS_HEADER_TEST_TAG = "featured_widgets_tab"
     const val PERSONAL_WIDGETS_TAB_TEST_TAG = "personal_widgets_tab"
     const val WORK_WIDGETS_TAB_TEST_TAG = "work_widgets_tab"
     const val PERSONAL_WIDGETS_LIST_TEST_TAG = "personal_widgets_list"

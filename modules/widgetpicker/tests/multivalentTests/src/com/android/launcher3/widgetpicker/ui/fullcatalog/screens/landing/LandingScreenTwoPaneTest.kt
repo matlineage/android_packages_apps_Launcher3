@@ -83,7 +83,6 @@ class LandingScreenTwoPaneTest {
     private val widgetAppIconsRepository = FakeWidgetAppIconsRepository()
     private val widgetsUsersRepository = FakeWidgetUsersRepository()
 
-    private lateinit var featuredTabLabel: String
     private lateinit var browseTabLabel: String
     private val featuredWidgetA = PERSONAL_TEST_APPS[0].widgets[0]
     private val featuredWidgetB = WORK_TEST_APPS[0].widgets[0]
@@ -108,11 +107,9 @@ class LandingScreenTwoPaneTest {
                     ),
             )
 
-        featuredTabLabel = context.resources.getString(R.string.featured_widgets_tab_label)
         browseTabLabel = context.resources.getString(R.string.browse_widgets_tab_label)
 
         widgetsRepository.seedWidgets(PERSONAL_TEST_APPS + WORK_TEST_APPS)
-        widgetsRepository.seedFeaturedWidgets(setOf(featuredWidgetA.id, featuredWidgetB.id))
         widgetsUsersRepository.seedUserProfiles(
             WidgetUserProfiles(
                 personal = TestUtils.widgetUserProfilePersonal,
@@ -141,7 +138,7 @@ class LandingScreenTwoPaneTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun showsFeaturedSectionByDefault() =
+    fun showsBrowseSectionByDefault() =
         testScope.runTest {
             composeTestRule.setContent { TwoPaneTestContent() }
 
@@ -158,9 +155,7 @@ class LandingScreenTwoPaneTest {
                     }
                 )
                 .assertExists()
-            // Featured tab as list item
-            composeTestRule.onNode(hasText(featuredTabLabel)).assertIsSelected()
-            // And toolbar also simultaneously shows one of the tabs as selected
+            // Browse (personal) tab as list item is selected by default
             composeTestRule
                 .onNode(hasTextExactly(PERSONAL_LABEL))
                 .assertExists()
@@ -171,13 +166,6 @@ class LandingScreenTwoPaneTest {
                 .assertExists()
                 .assertContentDescriptionEquals("$WORK_LABEL widgets")
                 .assertIsNotSelected()
-            // Featured Widgets state
-            composeTestRule
-                .onNode(hasContentDescription(featuredWidgetA.label, substring = true))
-                .assertExists()
-            composeTestRule
-                .onNode(hasContentDescription(featuredWidgetB.label, substring = true))
-                .assertExists()
             // List on left showing personal apps
             composeTestRule
                 .onNode(hasText(PERSONAL_TEST_APPS[0].title!!.toString()))
@@ -210,13 +198,11 @@ class LandingScreenTwoPaneTest {
                 .assertExists()
                 .assertIsNotSelected()
             // Selecting toolbar tabs in 2-pane view doesn't reset what's showing in right pane; one
-            // has
-            // to click on specific app header to see the widgets.
-            composeTestRule.onNode(hasText(featuredTabLabel)).assertIsSelected()
+            // has to click on specific app header to see the widgets.
             // No recommendations showing
             composeTestRule
                 .onNode(hasContentDescription(featuredWidgetA.label, substring = true))
-                .assertIsDisplayed()
+                .assertIsNotDisplayed()
             // Has list of work apps showing
             composeTestRule
                 .onNode(hasText(WORK_TEST_APPS[0].title!!.toString()))
@@ -239,46 +225,22 @@ class LandingScreenTwoPaneTest {
             runCurrent()
             composeTestRule.waitForIdle()
 
-            // Feature tab selected and right pane title indicating the same.
-            composeTestRule.onNode(hasText(featuredTabLabel)).assertIsSelected()
-            val rightPaneTitleBefore =
-                context.resources.getString(
-                    R.string.widget_picker_right_pane_accessibility_label,
-                    featuredTabLabel,
-                )
-            composeTestRule
-                .onNode(
-                    SemanticsMatcher("Right paneTitle before selecting an app on left") {
-                        it.config.getOrNull(SemanticsProperties.PaneTitle) == rightPaneTitleBefore
-                    }
-                )
-                .assertExists()
+            // Browse tab selected and right pane title indicating the same.
+            composeTestRule.onNode(hasTextExactly(PERSONAL_LABEL)).assertIsSelected()
 
             composeTestRule.onNode(hasText(appToSelect)).assertExists().performClick()
             runCurrent()
             composeTestRule.waitForIdle()
 
-            // Now app is selected and featured tab is not.
+            // Now app is selected and browse tab is not.
             composeTestRule.onNode(hasText(appToSelect)).assertIsSelected()
-            composeTestRule.onNode(hasText(featuredTabLabel)).assertIsNotSelected()
+            composeTestRule.onNode(hasTextExactly(PERSONAL_LABEL)).assertIsNotSelected()
             // widgets for the selected app are showing
             composeTestRule
                 .onNode(
                     hasContentDescription(PERSONAL_TEST_APPS[1].widgets[0].label, substring = true)
                 )
                 .assertIsDisplayed()
-            val rightPaneTitleAfter =
-                context.resources.getString(
-                    R.string.widget_picker_right_pane_accessibility_label,
-                    appToSelect,
-                )
-            composeTestRule
-                .onNode(
-                    SemanticsMatcher("Right PaneTitle after clicking on app") {
-                        it.config.getOrNull(SemanticsProperties.PaneTitle) == rightPaneTitleAfter
-                    }
-                )
-                .assertExists()
         }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -302,7 +264,6 @@ class LandingScreenTwoPaneTest {
     fun noWorkProfile_noFloatingToolbar() =
         testScope.runTest {
             widgetsRepository.seedWidgets(PERSONAL_TEST_APPS)
-            widgetsRepository.seedFeaturedWidgets(setOf(featuredWidgetA.id))
             widgetsUsersRepository.seedUserProfiles(
                 profiles =
                     WidgetUserProfiles(personal = TestUtils.widgetUserProfilePersonal, work = null),
@@ -314,21 +275,8 @@ class LandingScreenTwoPaneTest {
             runCurrent()
             composeTestRule.waitForIdle()
 
-            // Featured list header
-            composeTestRule.onNode(hasText(featuredTabLabel)).assertIsSelected()
-            // No toolbar i.e. browse tab
+            // No toolbar i.e. single browse page
             composeTestRule.onNode(hasTextExactly(browseTabLabel)).assertDoesNotExist()
-            // featured widgets showing
-            composeTestRule
-                .onNode(hasContentDescription(featuredWidgetA.label, substring = true))
-                .assertExists()
-                .assertIsDisplayed()
-            // But not other widgets
-            composeTestRule
-                .onNode(
-                    hasContentDescription(PERSONAL_TEST_APPS[1].widgets[0].label, substring = true)
-                )
-                .assertDoesNotExist()
             // Widget apps list shown on left
             composeTestRule
                 .onNode(hasText(PERSONAL_TEST_APPS[0].title!!.toString()))
@@ -342,7 +290,6 @@ class LandingScreenTwoPaneTest {
         testScope.runTest {
             val pausedError = "work apps paused"
             widgetsRepository.seedWidgets(PERSONAL_TEST_APPS + WORK_TEST_APPS)
-            widgetsRepository.seedFeaturedWidgets(setOf(featuredWidgetA.id))
             widgetsUsersRepository.seedUserProfiles(
                 WidgetUserProfiles(
                     personal = TestUtils.widgetUserProfilePersonal,
