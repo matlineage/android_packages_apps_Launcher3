@@ -72,7 +72,7 @@ object OnboardingPrefs {
 
     @JvmField val ALL_APPS_VISITED_COUNT = CountedItem("launcher.all_apps_visited_count", 20)
 
-    @JvmField val HOME_BOUNCE_SEEN = backedUpItem("launcher.apps_view_shown", false)
+    @JvmField val HOME_BOUNCE_SEEN = backedUpItem("launcher.apps_view_shown", true)
 
     @JvmField
     val HOTSEAT_LONGPRESS_TIP_SEEN = backedUpItem("launcher.hotseat_longpress_tip_seen", false)
